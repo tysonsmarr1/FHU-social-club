@@ -1,8 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { useColorScheme, ActivityIndicator, Text, View, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
-// NOTE: We are removing the import for getDirectoryMembers here
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
+import { useColorScheme } from "react-native";
+import { Models, Query } from "react-native-appwrite";
+import { useAuth } from "@/hooks/AuthContext";
+import {
+  databases,
+  DATABASE_ID,
+  MEMBERS_COLLECTION_ID,
+} from "@/lib/appwrite";
 
 // --- 1. Type Definitions ---
 
@@ -16,7 +26,7 @@ export type Person = {
   email: string;
   phone: string;
   officerTitle?: string;
-  showEmail: boolean; 
+  showEmail: boolean;
   showPhone: boolean;
 };
 
@@ -37,26 +47,44 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const useDirectoryApp = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
-    throw new Error('useDirectoryApp must be used within a DirectoryAppProvider');
+    throw new Error("useDirectoryApp must be used within a DirectoryAppProvider");
   }
   return context;
 };
 
-// --- Helper Function for Data Mapping (Local JSON) ---
-const mapPersonData = (item: any): Person => {
-  // Maps fields from the local JSON file
+// --- Member document type from Appwrite ---
+
+type MemberDoc = Models.Document & {
+  firstName: string;
+  lastName: string;
+  imageURL?: string;
+  classification?: string;
+  relationshipStatus?: string;
+  email?: string;
+  phone?: string;
+  officer?: string;
+  showEmail?: boolean;
+  showPhone?: boolean;
+  clubId?: string; // field in your Appwrite collection
+};
+
+// --- Helper: Map Appwrite doc -> Person ---
+
+const mapPersonFromDoc = (doc: MemberDoc): Person => {
   return {
-    id: String(item.id),
-    firstName: item.firstName,
-    lastName: item.lastName,
-    image: item.imageURL || 'https://placehold.co/150x150/aaaaaa/ffffff?text=FHU', 
-    classification: item.classification,
-    relationshipStatus: item.relationshipStatus,
-    email: item.email,
-    phone: item.phone,
-    officerTitle: item.officer || undefined, 
-    showEmail: item.showEmail || false,
-    showPhone: item.showPhone || false,
+    id: String(doc.$id),
+    firstName: doc.firstName,
+    lastName: doc.lastName,
+    image:
+      doc.imageURL ||
+      "https://placehold.co/150x150/aaaaaa/ffffff?text=FHU",
+    classification: doc.classification ?? "",
+    relationshipStatus: doc.relationshipStatus ?? "",
+    email: doc.email ?? "",
+    phone: doc.phone ?? "",
+    officerTitle: doc.officer || undefined,
+    showEmail: !!doc.showEmail,
+    showPhone: !!doc.showPhone,
   };
 };
 
@@ -66,49 +94,59 @@ type DirectoryAppProviderProps = {
   children: React.ReactNode;
 };
 
-export const DirectoryAppProvider: React.FC<DirectoryAppProviderProps> = ({ children }) => {
+export const DirectoryAppProvider: React.FC<DirectoryAppProviderProps> = ({
+  children,
+}) => {
   const systemColorScheme = useColorScheme();
   const [people, setPeople] = useState<Person[]>([]);
-  const [isDark, setIsDark] = useState(systemColorScheme === 'dark');
+  const [isDark, setIsDark] = useState(systemColorScheme === "dark");
   const [isLoading, setIsLoading] = useState(true);
-  const [appError, setAppError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   // --- Theme Toggle ---
   const toggleTheme = () => {
-    setIsDark(prev => !prev);
+    setIsDark((prev) => !prev);
   };
 
-  // --- Data Loading (Synchronous local loading via require) ---
+  // --- Data Loading from Appwrite ---
   useEffect(() => {
-    console.log('Attempting to load data from LOCAL JSON file...');
-    try {
-      // Use require() with a relative path to read the local JSON file
-      // NOTE: The path is relative to the 'components' folder, going up one level
-      // and assuming the JSON is in the project root.
-      const rawData = require('@/assets/data/sample_people_50_v4_with_id.json');
-      
-      if (!rawData || !Array.isArray(rawData)) {
-        throw new Error('Local JSON file is empty or invalid.');
+    const loadMembers = async () => {
+      if (!user) {
+        setPeople([]);
+        setIsLoading(false);
+        return;
       }
-      
-      const finalData = rawData.map(mapPersonData);
-      
-      setPeople(finalData);
-      console.log(`Successfully loaded ${finalData.length} members from local file.`);
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown data loading error occurred.';
-      console.error('CRITICAL LOCAL LOADING ERROR:', errorMessage);
-      setAppError("Local file read failure. File not found or corrupt.");
-      setPeople([]); 
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); 
+      setIsLoading(true);
+      try {
+        // clubId stored in user prefs (see AuthContext signup)
+        const prefs = (user.prefs as any) || {};
+        const clubId = prefs.clubId as string | undefined;
 
-  // --- Helper Function (Memoized for efficiency) ---
+        const queries = clubId ? [Query.equal("clubId", clubId)] : [];
+
+        const res = await databases.listDocuments<MemberDoc>(
+          DATABASE_ID,
+          MEMBERS_COLLECTION_ID,
+          queries
+        );
+
+        const mapped = res.documents.map(mapPersonFromDoc);
+        setPeople(mapped);
+      } catch (error) {
+        console.error("Error loading members from Appwrite:", error);
+        setPeople([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMembers();
+  }, [user]);
+
+  // --- Helper Function (Memoized) ---
   const getPersonById = useMemo(() => {
-    return (id: string) => people.find(p => String(p.id) === String(id));
+    return (id: string) => people.find((p) => String(p.id) === String(id));
   }, [people]);
 
   // --- Context Value ---
@@ -120,57 +158,10 @@ export const DirectoryAppProvider: React.FC<DirectoryAppProviderProps> = ({ chil
     getPersonById,
   };
 
-  // --- Loading Indicator / Error Display UI ---
-  const color = Colors[isDark ? 'dark' : 'light'];
-  
-  if (isLoading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: color.background }]}>
-        <ActivityIndicator size="large" color={color.tint} />
-        <Text style={[styles.loadingText, { color: color.text }]}>Loading Directory...</Text>
-      </View>
-    );
-  }
-
-  if (appError) {
-      return (
-          <View style={[styles.loadingContainer, { backgroundColor: color.background, padding: 20 }]}>
-              <Ionicons name="warning-outline" size={30} color="#ff3333" />
-              <Text style={[styles.errorTitle, { color: '#ff3333', marginTop: 10 }]}>DATA LOADING FAILED</Text>
-              <Text style={[styles.errorMessage, { color: color.text, opacity: 0.8, marginTop: 10 }]}>
-                  {appError}
-              </Text>
-              <Text style={[styles.errorMessage, { color: color.text, opacity: 0.6, marginTop: 20, fontSize: 14 }]}>
-                  Hint: Ensure sample_people_50_v4_with_id.json is in the project root.
-              </Text>
-          </View>
-      );
-  }
-
   // --- Provide Context to Children ---
-  return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={contextValue}>
+      {children}
+    </AppContext.Provider>
+  );
 };
-
-// --- Styles ---
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
-  errorTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      textAlign: 'center',
-  },
-  errorMessage: {
-      fontSize: 16,
-      textAlign: 'center',
-      paddingHorizontal: 10,
-  }
-});
