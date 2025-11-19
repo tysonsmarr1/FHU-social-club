@@ -14,7 +14,7 @@ import {
   MEMBERS_COLLECTION_ID,
 } from "@/lib/appwrite";
 
-// --- 1. Type Definitions ---
+// ---Type Definitions ---
 
 export type Person = {
   id: string;
@@ -38,11 +38,11 @@ type AppContextType = {
   getPersonById: (id: string) => Person | undefined;
 };
 
-// --- 2. Context Initialization ---
+// ---  Context Initialization ---
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// --- 3. Custom Hook to Consume Context ---
+// --- Custom Hook to Consume Context ---
 
 export const useDirectoryApp = () => {
   const context = useContext(AppContext);
@@ -65,10 +65,10 @@ type MemberDoc = Models.Document & {
   officer?: string;
   showEmail?: boolean;
   showPhone?: boolean;
-  // club?: string; // you can add this if you want to read the club from docs later
+  club?: string;
 };
 
-// --- Helper: Map Appwrite doc -> Person ---
+// --- Helper---
 
 const mapPersonFromDoc = (doc: MemberDoc): Person => {
   return {
@@ -88,7 +88,7 @@ const mapPersonFromDoc = (doc: MemberDoc): Person => {
   };
 };
 
-// --- 5. Provider Component ---
+// ---Provider Component ---
 
 type DirectoryAppProviderProps = {
   children: React.ReactNode;
