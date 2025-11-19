@@ -60,7 +60,7 @@ export default function SignupScreen() {
 
       <Button title="Sign Up" onPress={onSubmit} />
       <View style={{ height: 16 }} />
-      <Link href="/login">
+      <Link href="/member/login">
         <Text style={styles.link}>Already have an account? Login</Text>
       </Link>
     </View>

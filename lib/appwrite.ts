@@ -1,14 +1,15 @@
 // lib/appwrite.ts
-import { Client, Account, Databases, Avatars } from "react-native-appwrite";
+import { Client, Account, Databases } from "react-native-appwrite";
 
-export const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1"; // change if self-hosted
+export const APPWRITE_ENDPOINT = "https://nyc.cloud.appwrite.io/v1";
 export const APPWRITE_PROJECT_ID = "6907c6da00126f6c553f";
 
-// TODO: replace these with your real IDs from Appwrite
-export const DATABASE_ID = "fhu-social-club-db";
+// ✅ from your screenshot
+export const DATABASE_ID = "fhudirectory";
+
+// ⬇️ you'll fill these in after step 2
 export const MEMBERS_COLLECTION_ID = "members";
-export const EVENTS_COLLECTION_ID = "events";
-export const CLUBS_COLLECTION_ID = "clubs";
+export const EVENTS_COLLECTION_ID = "users";
 
 const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)
@@ -16,5 +17,3 @@ const client = new Client()
 
 export const account = new Account(client);
 export const databases = new Databases(client);
-export const avatars = new Avatars(client);
-export { client };

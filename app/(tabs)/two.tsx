@@ -3,6 +3,7 @@ import { Text, View } from '@/components/Themed';
 import { useDirectoryApp } from '@/components/DirectoryAppProvider';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from "@/hooks/AuthContext";
 
 const ProfileInfoRow = ({ label, value, isDark }: { label: string, value: string, isDark: boolean }) => {
     const color = Colors[isDark ? 'dark' : 'light'];
@@ -19,17 +20,19 @@ const ProfileInfoRow = ({ label, value, isDark }: { label: string, value: string
             <Text style={[profileStyles.infoValue, { color: color.text }]}>{value}</Text>
         </View>
     );
-}
+};
+
 export default function ProfileScreen() {
     const { isDark, toggleTheme } = useDirectoryApp();
+    const { user, logout } = useAuth();
     const color = Colors[isDark ? 'dark' : 'light'];
 
     const placeholderUser = {
-        name: "Name",
-        email: "placeholder@fhu.edu",
-        club: "No Club Assigned",
+        name: user?.name ?? "Name",
+        email: user?.email ?? "placeholder@fhu.edu",
+        club: ((user?.prefs as any)?.clubId as string) ?? "No Club Assigned",
         image: "user",
-    }
+    };
 
     return (
         <ScrollView contentContainerStyle={[profileStyles.scrollContent, { backgroundColor: color.background }]}>
@@ -41,9 +44,14 @@ export default function ProfileScreen() {
                     accessibilityLabel={`${placeholderUser.name}'s profile picture`}
                 />
                 
-                <Text style={[profileStyles.nameText, { color: color.text }]}>{placeholderUser.name}</Text>
+                <Text style={[profileStyles.nameText, { color: color.text }]}>
+                    {placeholderUser.name}
+                </Text>
                 
-                <TouchableOpacity style={profileStyles.logoutButton} onPress={() => console.log('Logout action placeholder')}>
+                <TouchableOpacity
+                    style={profileStyles.logoutButton}
+                    onPress={logout}
+                >
                     <Text style={profileStyles.logoutText}>Logout</Text>
                 </TouchableOpacity>
             </View>
@@ -53,7 +61,11 @@ export default function ProfileScreen() {
                 
                 <ProfileInfoRow label="Email" value={placeholderUser.email} isDark={isDark} />
                 <ProfileInfoRow label="Club" value={placeholderUser.club} isDark={isDark} />
-                <ProfileInfoRow label="Status" value="Authenticated (Bypassed)" isDark={isDark} />
+                <ProfileInfoRow
+                    label="Status"
+                    value={user ? "Authenticated" : "Not logged in"}
+                    isDark={isDark}
+                />
             </View>
 
             <View style={[profileStyles.detailsSection, { borderColor: color.separator }]}>

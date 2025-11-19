@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/AuthContext";
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const prefs = (user?.prefs as any) || {};
-  const club = prefs.clubId ?? "Unknown";
+  const club = prefs.clubId ?? "club";
 
   return (
     <View style={styles.container}>

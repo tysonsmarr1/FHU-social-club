@@ -65,7 +65,7 @@ type MemberDoc = Models.Document & {
   officer?: string;
   showEmail?: boolean;
   showPhone?: boolean;
-  clubId?: string; // field in your Appwrite collection
+  // club?: string; // you can add this if you want to read the club from docs later
 };
 
 // --- Helper: Map Appwrite doc -> Person ---
@@ -123,7 +123,14 @@ export const DirectoryAppProvider: React.FC<DirectoryAppProviderProps> = ({
         const prefs = (user.prefs as any) || {};
         const clubId = prefs.clubId as string | undefined;
 
-        const queries = clubId ? [Query.equal("clubId", clubId)] : [];
+        // 👇 IMPORTANT: "club" must match the attribute name in your Appwrite members collection
+        const queries = clubId ? [Query.equal("club", clubId)] : [];
+
+        console.log("Loading members from Appwrite with", {
+          databaseId: DATABASE_ID,
+          collectionId: MEMBERS_COLLECTION_ID,
+          clubId,
+        });
 
         const res = await databases.listDocuments<MemberDoc>(
           DATABASE_ID,

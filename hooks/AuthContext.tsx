@@ -1,80 +1,106 @@
-
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { account } from "@/lib/appwrite";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { Models } from "react-native-appwrite";
+import { account } from "@/lib/appwrite";
+
+type AppwriteUser = Models.User<Models.Preferences>;
 
 type AuthContextType = {
-  user: Models.User<Models.Preferences> | null;
+  user: AppwriteUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, clubId: string) => Promise<void>;
+  signup: (
+    name: string,
+    email: string,
+    password: string,
+    clubId: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
 };
 
+// ❗ THIS is your actual React Context (not the type)
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null);
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return ctx;
+};
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<AppwriteUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchCurrentUser = async () => {
-    try {
-      const current = await account.get();
-      setUser(current);
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Load user session on startup
   useEffect(() => {
-    fetchCurrentUser();
+    const fetchUser = async () => {
+      try {
+        const result = await account.get();
+        setUser(result);
+      } catch {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    fetchUser();
   }, []);
 
+  // Login
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // create a session
       await account.createEmailPasswordSession(email, password);
-      await fetchCurrentUser();
+      const current = await account.get();
+      setUser(current);
     } finally {
       setLoading(false);
     }
   };
 
-  const signup = async (name: string, email: string, password: string, clubId: string) => {
+  // Signup — create user, save prefs
+  const signup = async (
+    name: string,
+    email: string,
+    password: string,
+    clubId: string
+  ) => {
     setLoading(true);
     try {
-      // create user
       await account.create("unique()", email, password, name);
-      // create session
       await account.createEmailPasswordSession(email, password);
-      // store club on user preferences
+
+      // Save clubId in user preferences
       await account.updatePrefs({ clubId });
-      await fetchCurrentUser();
+
+      const current = await account.get();
+      setUser(current);
     } finally {
       setLoading(false);
     }
   };
 
+  // Logout
   const logout = async () => {
     setLoading(true);
     try {
       await account.deleteSession("current");
-      setUser(null);
     } finally {
+      setUser(null);
       setLoading(false);
     }
   };
 
-  const value: AuthContextType = { user, loading, login, signup, logout };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  return (
+    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

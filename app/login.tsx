@@ -1,7 +1,7 @@
 // app/login.tsx
 import { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet } from "react-native";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";   // 👈 add router
 import { useAuth } from "@/hooks/AuthContext";
 
 export default function LoginScreen() {
@@ -14,6 +14,9 @@ export default function LoginScreen() {
     try {
       setError(null);
       await login(email.trim(), password);
+
+      // 👇 on success, send user into the main app
+      router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.message ?? "Login failed");
     }
@@ -40,6 +43,7 @@ export default function LoginScreen() {
       />
       <Button title="Login" onPress={onSubmit} />
       <View style={{ height: 16 }} />
+      {/* 👇 fix the signup route if needed */}
       <Link href="/signup">
         <Text style={styles.link}>Don&apos;t have an account? Sign up</Text>
       </Link>

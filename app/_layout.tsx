@@ -7,13 +7,12 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { DirectoryAppProvider, useDirectoryApp } from '@/components/DirectoryAppProvider';
+import { AuthProvider, useAuth } from '@/hooks/AuthContext';
 
-export {
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: 'login',
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -39,35 +38,54 @@ export default function RootLayout() {
   }
 
   return (
-    <DirectoryAppProvider>
-      <RootLayoutNav />
-    </DirectoryAppProvider>
+    <AuthProvider>
+      <DirectoryAppProvider>
+        <RootLayoutNav />
+      </DirectoryAppProvider>
+    </AuthProvider>
   );
 }
 
 function RootLayoutNav() {
   const { isDark } = useDirectoryApp();
-
+  const { user, loading } = useAuth();   // 👈 make sure AuthContext exposes `loading`
   const colorScheme = isDark ? 'dark' : 'light';
   const theme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
-  
+
   theme.colors.background = isDark ? '#1a1a1a' : '#f5f5f5';
+
+  // While auth is checking the session, you can show nothing or a tiny splash
+  if (loading) {
+    return null;
+  }
 
   return (
     <ThemeProvider value={theme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        
-        <Stack.Screen 
-          name="member/[id]" 
-          options={{ 
-            title: 'Member Details',
-            presentation: 'card'
-          }} 
-        />
-
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
+      {user ? (
+        // ✅ Logged in: show tabs + member + modal
+        <Stack>
+          <Stack.Screen
+            name="(tabs)"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="member/[id]"
+            options={{
+              title: 'Member Details',
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        </Stack>
+      ) : (
+        // ❌ Not logged in: only show login
+        <Stack>
+          <Stack.Screen
+            name="login"
+            options={{ headerShown: false }}
+          />
+        </Stack>
+      )}
     </ThemeProvider>
   );
 }
