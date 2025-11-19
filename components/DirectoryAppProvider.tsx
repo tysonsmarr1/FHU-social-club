@@ -123,7 +123,7 @@ export const DirectoryAppProvider: React.FC<DirectoryAppProviderProps> = ({
         const prefs = (user.prefs as any) || {};
         const clubId = prefs.clubId as string | undefined;
 
-        // 👇 IMPORTANT: "club" must match the attribute name in your Appwrite members collection
+        //"club" must match the attribute name in your Appwrite members collection
         const queries = clubId ? [Query.equal("club", clubId)] : [];
 
         console.log("Loading members from Appwrite with", {
@@ -151,7 +151,7 @@ export const DirectoryAppProvider: React.FC<DirectoryAppProviderProps> = ({
     loadMembers();
   }, [user]);
 
-  // --- Helper Function (Memoized) ---
+  // --- Helper Function  ---
   const getPersonById = useMemo(() => {
     return (id: string) => people.find((p) => String(p.id) === String(id));
   }, [people]);

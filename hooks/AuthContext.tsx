@@ -23,7 +23,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-// ❗ THIS is your actual React Context (not the type)
+//  THIS is your actual React Context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
